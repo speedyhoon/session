@@ -24,11 +24,11 @@ var globalSessions = struct {
 }{m: make(map[string]session)}
 
 func init() {
-	go Upkeep()
+	go upkeep()
 }
 
-//Upkeep periodically deletes expired sessions
-func Upkeep() {
+//upkeep periodically deletes expired sessions
+func upkeep() {
 	for range time.NewTicker(expiryTime).C {
 		//Can't directly change global variables in a go routine, so call an external function.
 		Purge()
@@ -83,6 +83,7 @@ func Set(w http.ResponseWriter, f forms.Form) {
 	http.SetCookie(w, &cookie)
 }
 
+//generateID generates a new random session ID string 24 ASCII characters long
 func generateID() string {
 	const (
 		//string generated from validCookieValueByte golang source code net/http/cookie.go
