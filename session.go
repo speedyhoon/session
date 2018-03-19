@@ -13,10 +13,15 @@ const (
 	expiryTime = time.Minute * 2
 )
 
+type session struct {
+	Expiry time.Time
+	Form forms.Form
+}
+
 var globalSessions = struct {
 	sync.RWMutex
-	m map[string]forms.Form
-}{m: make(map[string]forms.Form)}
+	m map[string]session
+}{m: make(map[string]session)}
 
 func init() {
 	go Upkeep()
@@ -50,7 +55,7 @@ func Purge() {
 }
 
 func Set(w http.ResponseWriter, f forms.Form) {
-	f.Expiry = time.Now().Add(expiryTime)
+	s := session{Form: f, Expiry: time.Now().Add(expiryTime)}
 	var ok bool
 	var id string
 
@@ -62,7 +67,7 @@ func Set(w http.ResponseWriter, f forms.Form) {
 
 		if !ok {
 			//Assign the session ID if it isn't already assigned
-			globalSessions.m[id] = f
+			globalSessions.m[id] = s
 			break
 		}
 		//else if sessionID is already assigned then regenerate a different session ID
@@ -73,7 +78,7 @@ func Set(w http.ResponseWriter, f forms.Form) {
 		Name:     token,
 		Value:    id,
 		HttpOnly: true,
-		Expires:  f.Expiry,
+		Expires:  s.Expiry,
 	}
 	http.SetCookie(w, &cookie)
 }
@@ -88,7 +93,7 @@ func generateID() string {
 		letterIdxMax  = 63 / letterIdxBits   //# of letter indices fitting in 63 bits
 	)
 	src := rand.NewSource(time.Now().UnixNano())
-	//author: icza, stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
+	//credit: icza, stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
 	b := make([]byte, n)
 	//A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
 	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
@@ -113,7 +118,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form
 	cookie, err := r.Cookie(token)
 	if err != nil || cookie == nil || cookie.Value == "" {
 		//No session found. Return default forms.
-		return noAction, forms.Fetch(getForm, formIDs...)
+		return noAction, fetch(getForm, formIDs...)
 	}
 
 	//Remove client session cookie
@@ -129,7 +134,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form
 	contents, ok := globalSessions.m[cookie.Value]
 	globalSessions.RUnlock()
 	if !ok {
-		return noAction, forms.Fetch(getForm, formIDs...)
+		return noAction, fetch(getForm, formIDs...)
 	}
 
 	//Clear the session contents as it has been returned to the user.
@@ -139,11 +144,18 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form
 
 	var f []forms.Form
 	for _, id := range formIDs {
-		if contents.Action == id {
-			f = append(f, contents)
+		if contents.Form.Action == id {
+			f = append(f, contents.Form)
 		} else {
 			f = append(f, getForm(id))
 		}
 	}
-	return contents.Action, f
+	return contents.Form.Action, f
+}
+
+func fetch(getForm func(uint8)forms.Form, formIDs ...uint8) (f []forms.Form) {
+	for _, id := range formIDs {
+		f = append(f, getForm(id))
+	}
+	return f
 }
