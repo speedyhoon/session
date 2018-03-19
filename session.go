@@ -5,17 +5,18 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	"github.com/speedyhoon/forms"
 )
 
 const (
-	token             = "s"
+	token      = "s"
 	expiryTime = time.Minute * 2
 )
 
 type session struct {
 	Expiry time.Time
-	Form forms.Form
+	Form   forms.Form
 }
 
 var globalSessions = struct {
@@ -25,31 +26,12 @@ var globalSessions = struct {
 
 func init() {
 	//periodically delete expired sessions
-	go func(){
+	go func() {
 		for range time.NewTicker(expiryTime).C {
 			//Can't directly change global variables in a go routine, so call an external function.
 			purge()
 		}
 	}()
-}
-
-//purge deletes sessions where the expiry datetime has already lapsed.
-func purge() {
-	globalSessions.RLock()
-	qty := len(globalSessions.m)
-	globalSessions.RUnlock()
-	if qty == 0 {
-		return
-	}
-
-	now := time.Now()
-	globalSessions.Lock()
-	for sessionID := range globalSessions.m {
-		if globalSessions.m[sessionID].Expiry.Before(now) {
-			delete(globalSessions.m, sessionID)
-		}
-	}
-	globalSessions.Unlock()
 }
 
 func Set(w http.ResponseWriter, f forms.Form) {
@@ -81,6 +63,56 @@ func Set(w http.ResponseWriter, f forms.Form) {
 	http.SetCookie(w, &cookie)
 }
 
+//Forms retrieves a slice of forms, including any errors (if any)
+func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8) forms.Form, formIDs ...uint8) (uint8, []forms.Form) {
+	const noAction = 255
+
+	//Get users session id from request cookie header
+	cookie, err := r.Cookie(token)
+	if err != nil || cookie == nil || cookie.Value == "" {
+		//No session found. Return default forms.
+		return noAction, getForms(getForm, formIDs...)
+	}
+
+	//Remove client session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     token,
+		Value:    "",                                //Remove cookie by setting it to nothing (empty string).
+		HttpOnly: true,                              //HttpOnly means the cookie can't be accessed by JavaScript
+		Expires:  time.Now().UTC().Add(-expiryTime), //Using minus expiryTime so the session expires time is set to the past
+	})
+
+	//Start a read lock to prevent concurrent reads while other parts are executing a write.
+	globalSessions.RLock()
+	contents, ok := globalSessions.m[cookie.Value]
+	globalSessions.RUnlock()
+	if !ok {
+		return noAction, getForms(getForm, formIDs...)
+	}
+
+	//Clear the session contents as it has been returned to the user.
+	globalSessions.Lock()
+	delete(globalSessions.m, cookie.Value)
+	globalSessions.Unlock()
+
+	var f []forms.Form
+	for _, id := range formIDs {
+		if contents.Form.Action == id {
+			f = append(f, contents.Form)
+		} else {
+			f = append(f, getForm(id))
+		}
+	}
+	return contents.Form.Action, f
+}
+
+func getForms(getForm func(uint8) forms.Form, formIDs ...uint8) (f []forms.Form) {
+	for _, id := range formIDs {
+		f = append(f, getForm(id))
+	}
+	return
+}
+
 //generateID generates a new random session ID string 24 ASCII characters long
 func generateID() string {
 	const (
@@ -109,52 +141,21 @@ func generateID() string {
 	return string(b)
 }
 
-//Forms retrieves a slice of forms, including any errors (if any)
-func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form, formIDs ...uint8) (uint8, []forms.Form) {
-	const noAction = 255
-
-	//Get users session id from request cookie header
-	cookie, err := r.Cookie(token)
-	if err != nil || cookie == nil || cookie.Value == "" {
-		//No session found. Return default forms.
-		return noAction, getForms(getForm, formIDs...)
-	}
-
-	//Remove client session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     token,
-		Value:    "",                                       //Remove cookie by setting it to nothing (empty string).
-		HttpOnly: true,                                     //HttpOnly means the cookie can't be accessed by JavaScript
-		Expires:  time.Now().UTC().Add(-expiryTime), //Using minus expiryTime so the session expires time is set to the past
-	})
-
-	//Start a read lock to prevent concurrent reads while other parts are executing a write.
+//purge deletes sessions where the expiry datetime has already lapsed.
+func purge() {
 	globalSessions.RLock()
-	contents, ok := globalSessions.m[cookie.Value]
+	qty := len(globalSessions.m)
 	globalSessions.RUnlock()
-	if !ok {
-		return noAction, getForms(getForm, formIDs...)
+	if qty == 0 {
+		return
 	}
 
-	//Clear the session contents as it has been returned to the user.
+	now := time.Now()
 	globalSessions.Lock()
-	delete(globalSessions.m, cookie.Value)
-	globalSessions.Unlock()
-
-	var f []forms.Form
-	for _, id := range formIDs {
-		if contents.Form.Action == id {
-			f = append(f, contents.Form)
-		} else {
-			f = append(f, getForm(id))
+	for sessionID := range globalSessions.m {
+		if globalSessions.m[sessionID].Expiry.Before(now) {
+			delete(globalSessions.m, sessionID)
 		}
 	}
-	return contents.Form.Action, f
-}
-
-func getForms(getForm func(uint8)forms.Form, formIDs ...uint8) (f []forms.Form) {
-	for _, id := range formIDs {
-		f = append(f, getForm(id))
-	}
-	return
+	globalSessions.Unlock()
 }
