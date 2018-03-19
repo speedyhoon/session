@@ -24,19 +24,17 @@ var globalSessions = struct {
 }{m: make(map[string]session)}
 
 func init() {
-	go upkeep()
+	//periodically delete expired sessions
+	go func(){
+		for range time.NewTicker(expiryTime).C {
+			//Can't directly change global variables in a go routine, so call an external function.
+			purge()
+		}
+	}()
 }
 
-//upkeep periodically deletes expired sessions
-func upkeep() {
-	for range time.NewTicker(expiryTime).C {
-		//Can't directly change global variables in a go routine, so call an external function.
-		Purge()
-	}
-}
-
-//Purge sessions where the expiry datetime has already lapsed.
-func Purge() {
+//purge deletes sessions where the expiry datetime has already lapsed.
+func purge() {
 	globalSessions.RLock()
 	qty := len(globalSessions.m)
 	globalSessions.RUnlock()
@@ -119,7 +117,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form
 	cookie, err := r.Cookie(token)
 	if err != nil || cookie == nil || cookie.Value == "" {
 		//No session found. Return default forms.
-		return noAction, fetch(getForm, formIDs...)
+		return noAction, getForms(getForm, formIDs...)
 	}
 
 	//Remove client session cookie
@@ -135,7 +133,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form
 	contents, ok := globalSessions.m[cookie.Value]
 	globalSessions.RUnlock()
 	if !ok {
-		return noAction, fetch(getForm, formIDs...)
+		return noAction, getForms(getForm, formIDs...)
 	}
 
 	//Clear the session contents as it has been returned to the user.
@@ -154,9 +152,9 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8)forms.Form
 	return contents.Form.Action, f
 }
 
-func fetch(getForm func(uint8)forms.Form, formIDs ...uint8) (f []forms.Form) {
+func getForms(getForm func(uint8)forms.Form, formIDs ...uint8) (f []forms.Form) {
 	for _, id := range formIDs {
 		f = append(f, getForm(id))
 	}
-	return f
+	return
 }
