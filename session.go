@@ -64,14 +64,14 @@ func Set(w http.ResponseWriter, f forms.Form) {
 }
 
 //Forms retrieves a slice of forms, including any errors (if any)
-func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8) forms.Form, formIDs ...uint8) (uint8, []forms.Form) {
-	const noAction = 255
+func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) (int, []forms.Form) {
+	formIndex := -1
 
 	//Get users session id from request cookie header
 	cookie, err := r.Cookie(token)
 	if err != nil || cookie == nil || cookie.Value == "" {
 		//No session found. Return default forms.
-		return noAction, getForms(getForm, formIDs...)
+		return formIndex, getForms(getFields, formIDs...)
 	}
 
 	//Remove client session cookie
@@ -87,7 +87,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8) forms.For
 	contents, ok := globalSessions.m[cookie.Value]
 	globalSessions.RUnlock()
 	if !ok {
-		return noAction, getForms(getForm, formIDs...)
+		return formIndex, getForms(getFields, formIDs...)
 	}
 
 	//Clear the session contents as it has been returned to the user.
@@ -96,19 +96,24 @@ func Forms(w http.ResponseWriter, r *http.Request, getForm func(uint8) forms.For
 	globalSessions.Unlock()
 
 	var f []forms.Form
-	for _, id := range formIDs {
+	for i, id := range formIDs {
 		if contents.Form.Action == id {
+			formIndex = i
+			//Get form fields because they are not populated for successful requests that passed validation
+			if len(contents.Form.Fields) == 0 {
+				contents.Form.Fields = getFields(contents.Form.Action)
+			}
 			f = append(f, contents.Form)
 		} else {
-			f = append(f, getForm(id))
+			f = append(f, forms.Form{Action: id, Fields: getFields(id)})
 		}
 	}
-	return contents.Form.Action, f
+	return formIndex, f
 }
 
-func getForms(getForm func(uint8) forms.Form, formIDs ...uint8) (f []forms.Form) {
+func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f []forms.Form) {
 	for _, id := range formIDs {
-		f = append(f, getForm(id))
+		f = append(f, forms.Form{Action: id, Fields: getFields(id)})
 	}
 	return
 }
