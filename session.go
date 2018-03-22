@@ -64,14 +64,12 @@ func Set(w http.ResponseWriter, f forms.Form) {
 }
 
 //Forms retrieves a slice of forms, including any errors (if any)
-func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) (int, []forms.Form) {
-	formIndex := -1
-
+func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) ([]forms.Form, *forms.Form) {
 	//Get users session id from request cookie header
 	cookie, err := r.Cookie(token)
 	if err != nil || cookie == nil || cookie.Value == "" {
 		//No session found. Return default forms.
-		return formIndex, getForms(getFields, formIDs...)
+		return getForms(getFields, formIDs...), nil
 	}
 
 	//Remove client session cookie
@@ -87,7 +85,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms
 	contents, ok := globalSessions.m[cookie.Value]
 	globalSessions.RUnlock()
 	if !ok {
-		return formIndex, getForms(getFields, formIDs...)
+		return getForms(getFields, formIDs...), nil
 	}
 
 	//Clear the session contents as it has been returned to the user.
@@ -96,9 +94,10 @@ func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms
 	globalSessions.Unlock()
 
 	var f []forms.Form
+	var index int
 	for i, id := range formIDs {
 		if contents.Form.Action == id {
-			formIndex = i
+			index = i
 			//Get form fields because they are not populated for successful requests that passed validation
 			if len(contents.Form.Fields) == 0 {
 				contents.Form.Fields = getFields(contents.Form.Action)
@@ -108,7 +107,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms
 			f = append(f, forms.Form{Action: id, Fields: getFields(id)})
 		}
 	}
-	return formIndex, f
+	return f, &f[index]
 }
 
 func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f []forms.Form) {
