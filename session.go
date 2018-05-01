@@ -64,12 +64,14 @@ func Set(w http.ResponseWriter, f forms.Form) {
 }
 
 //Forms retrieves a slice of forms, including any errors (if any)
-func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) ([]forms.Form, *forms.Form) {
+func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) (fs map[uint8]forms.Form, action uint8) {
+	action--
+
 	//Get users session id from request cookie header
 	cookie, err := r.Cookie(token)
 	if err != nil || cookie == nil || cookie.Value == "" {
 		//No session found. Return default forms.
-		return getForms(getFields, formIDs...), nil
+		return getForms(getFields, formIDs...), action
 	}
 
 	//Remove client session cookie
@@ -85,7 +87,7 @@ func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms
 	contents, ok := globalSessions.m[cookie.Value]
 	globalSessions.RUnlock()
 	if !ok {
-		return getForms(getFields, formIDs...), nil
+		return getForms(getFields, formIDs...), action
 	}
 
 	//Clear the session contents as it has been returned to the user.
@@ -93,26 +95,23 @@ func Forms(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms
 	delete(globalSessions.m, cookie.Value)
 	globalSessions.Unlock()
 
-	var f []forms.Form
-	var index int
-	for i, id := range formIDs {
+	for _, id := range formIDs {
 		if contents.Form.Action == id {
-			index = i
-			//Get form fields because they are not populated for successful requests that passed validation
-			if len(contents.Form.Fields) == 0 {
-				contents.Form.Fields = getFields(contents.Form.Action)
+			action = id
+			if len(contents.Form.Fields) > 0 {
+				fs[id] = contents.Form
+				continue
 			}
-			f = append(f, contents.Form)
-		} else {
-			f = append(f, forms.Form{Action: id, Fields: getFields(id)})
 		}
+		//Get form fields because they are not populated for successful requests that passed validation
+		fs[id] = forms.Form{Action: id, Fields: getFields(id)}
 	}
-	return f, &f[index]
+	return
 }
 
-func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f []forms.Form) {
+func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f map[uint8]forms.Form) {
 	for _, id := range formIDs {
-		f = append(f, forms.Form{Action: id, Fields: getFields(id)})
+		f[id] = forms.Form{Action: id, Fields: getFields(id)}
 	}
 	return
 }
