@@ -35,16 +35,12 @@ func init() {
 }
 
 func Set(w http.ResponseWriter, f forms.Form) {
-	var ok bool
-	var id string
-
 	//Start mutex write lock.
 	globalSessions.Lock()
 	for {
-		id = generateID()
-		_, ok = globalSessions.m[id]
+		id := generateID()
 
-		if !ok {
+		if _, ok := globalSessions.m[id]; !ok {
 			//Assign the session ID if it isn't already assigned
 			globalSessions.m[id] = session{Form: f, Expiry: sendCookie(w, id)}
 			break
