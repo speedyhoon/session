@@ -40,7 +40,6 @@ func Set(w http.ResponseWriter, f forms.Form) {
 	globalSessions.Lock()
 	for {
 		id := generateID()
-
 		if _, ok := globalSessions.m[id]; !ok {
 			//Assign the session ID if it isn't already assigned
 			globalSessions.m[id] = session{Form: f, Expiry: sendCookie(w, id)}
