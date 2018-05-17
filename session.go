@@ -34,6 +34,7 @@ func init() {
 	}()
 }
 
+//Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
 func Set(w http.ResponseWriter, f forms.Form) {
 	//Start mutex write lock.
 	globalSessions.Lock()
@@ -143,13 +144,6 @@ func generateID() string {
 
 //purge deletes unused sessions when their expiry datetime lapses.
 func purge() {
-	globalSessions.RLock()
-	qty := len(globalSessions.m)
-	globalSessions.RUnlock()
-	if qty == 0 {
-		return
-	}
-
 	now := time.Now()
 	globalSessions.Lock()
 	for sessionID := range globalSessions.m {
