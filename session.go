@@ -34,7 +34,7 @@ func init() {
 	}()
 }
 
-//Set assigns a session ID to retrieve the form f.
+// Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
 func Set(w http.ResponseWriter, f forms.Form) {
 	//Start mutex write lock.
 	globalSessions.Lock()
@@ -50,7 +50,7 @@ func Set(w http.ResponseWriter, f forms.Form) {
 	globalSessions.Unlock()
 }
 
-//Get retrieves a slice of forms and clears the Set-Cookie HTTP header.
+// Get retrieves a slice of forms and clears the Set-Cookie HTTP header.
 func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) (fs map[uint8]forms.Form, action uint8) {
 	action--
 
@@ -113,7 +113,7 @@ func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f map[uint
 	return
 }
 
-//generateID generates a new random session ID string 24 ASCII characters long
+// generateID generates a new random session ID string 24 ASCII characters long
 func generateID() string {
 	const (
 		//string generated from validCookieValueByte golang source code net/http/cookie.go
@@ -141,15 +141,8 @@ func generateID() string {
 	return string(b)
 }
 
-//purge deletes unused sessions when their expiry datetime lapses.
+// purge deletes unused sessions when their expiry datetime lapses.
 func purge() {
-	globalSessions.RLock()
-	qty := len(globalSessions.m)
-	globalSessions.RUnlock()
-	if qty == 0 {
-		return
-	}
-
 	now := time.Now()
 	globalSessions.Lock()
 	for sessionID := range globalSessions.m {
