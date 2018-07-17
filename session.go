@@ -72,10 +72,11 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.F
 		delete(globalSessions.m, cookie.Value)
 	}
 	globalSessions.Unlock()
-	if !ok {
+	if !ok || len(formIDs) == 0 {
 		return getForms(getFields, formIDs...), action
 	}
 
+	fs = make(map[uint8]forms.Form, len(formIDs))
 	for _, id := range formIDs {
 		if contents.Form.Action == id {
 			action = id
@@ -107,6 +108,7 @@ func sendCookie(w http.ResponseWriter, value string) (expiry time.Time) {
 }
 
 func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f map[uint8]forms.Form) {
+	f = make(map[uint8]forms.Form, len(formIDs))
 	for _, id := range formIDs {
 		f[id] = forms.Form{Action: id, Fields: getFields(id)}
 	}
