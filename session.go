@@ -42,7 +42,13 @@ func Set(w http.ResponseWriter, f forms.Form) {
 		id := generateID()
 		if _, ok := globalSessions.m[id]; !ok {
 			//Assign the session ID if it isn't already assigned
-			globalSessions.m[id] = session{Form: f, Expiry: sendCookie(w, id)}
+			globalSessions.m[id] = session{Form: f, Expiry: time.Now().UTC().Add(expiryTime)}
+			http.SetCookie(w, &http.Cookie{
+				Name:     token,
+				Value:    id,
+				HttpOnly: true, //HttpOnly means the cookie can't be accessed by JavaScript
+				MaxAge:   int(expiryTime.Seconds()),
+			})
 			break
 		}
 		//Else sessionID is already assigned, so regenerate a different session ID
@@ -62,7 +68,11 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.F
 	}
 
 	//Remove client session cookie
-	sendCookie(w, "")
+	http.SetCookie(w, &http.Cookie{
+		Name:     token,
+		HttpOnly: true, //HttpOnly means the cookie can't be accessed by JavaScript
+		MaxAge:   0,
+	})
 
 	//Start a read lock to prevent concurrent reads while other parts are executing a write.
 	globalSessions.Lock()
@@ -88,23 +98,6 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.F
 		//Get form fields because they are not populated for successful requests that passed validation
 		fs[id] = forms.Form{Action: id, Fields: getFields(id)}
 	}
-	return
-}
-
-func sendCookie(w http.ResponseWriter, value string) (expiry time.Time) {
-	var a time.Duration
-	if value == "" {
-		a = -expiryTime
-	} else {
-		a = expiryTime
-	}
-	expiry = time.Now().UTC().Add(a)
-	http.SetCookie(w, &http.Cookie{
-		Name:     token,
-		Value:    value,  //Remove cookie by setting it to nothing (empty string).
-		HttpOnly: true,   //HttpOnly means the cookie can't be accessed by JavaScript
-		Expires:  expiry, //Using minus expiryTime so the session expiry time has already lapsed
-	})
 	return
 }
 
