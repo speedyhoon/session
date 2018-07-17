@@ -98,13 +98,14 @@ func sendCookie(w http.ResponseWriter, value string) (expiry time.Time) {
 	} else {
 		a = expiryTime
 	}
+	expiry = time.Now().UTC().Add(a)
 	http.SetCookie(w, &http.Cookie{
 		Name:     token,
-		Value:    value,                   //Remove cookie by setting it to nothing (empty string).
-		HttpOnly: true,                    //HttpOnly means the cookie can't be accessed by JavaScript
-		Expires:  time.Now().UTC().Add(a), //Using minus expiryTime so the session expiry time has already lapsed
+		Value:    value,  //Remove cookie by setting it to nothing (empty string).
+		HttpOnly: true,   //HttpOnly means the cookie can't be accessed by JavaScript
+		Expires:  expiry, //Using minus expiryTime so the session expiry time has already lapsed
 	})
-	return expiry
+	return
 }
 
 func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f map[uint8]forms.Form) {
