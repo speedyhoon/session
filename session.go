@@ -36,24 +36,27 @@ func init() {
 
 //Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
 func Set(w http.ResponseWriter, f forms.Form) {
+	id := generateID()
+
 	//Start mutex write lock.
 	globalSessions.Lock()
 	for {
-		id := generateID()
 		if _, ok := globalSessions.m[id]; !ok {
 			//Assign the session ID if it isn't already assigned
 			globalSessions.m[id] = session{Form: f, Expiry: time.Now().UTC().Add(expiryTime)}
-			http.SetCookie(w, &http.Cookie{
-				Name:     token,
-				Value:    id,
-				HttpOnly: true, //HttpOnly means the cookie can't be accessed by JavaScript
-				MaxAge:   int(expiryTime.Seconds()),
-			})
 			break
 		}
+		id = generateID()
 		//Else sessionID is already assigned, so regenerate a different session ID
 	}
 	globalSessions.Unlock()
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     token,
+		Value:    id,
+		HttpOnly: true, //HttpOnly means the cookie can't be accessed by JavaScript
+		MaxAge:   int(expiryTime.Seconds()),
+	})
 }
 
 //Get retrieves a slice of forms and clears the Set-Cookie HTTP header.
