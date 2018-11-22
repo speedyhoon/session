@@ -19,7 +19,7 @@ type session struct {
 	Form   forms.Form
 }
 
-var globalSessions = struct {
+var sessionCache = struct {
 	sync.RWMutex
 	m map[string]session
 }{m: make(map[string]session)}
@@ -39,17 +39,17 @@ func Set(w http.ResponseWriter, f forms.Form) {
 	id := generateID()
 
 	//Start mutex write lock.
-	globalSessions.Lock()
+	sessionCache.Lock()
 	for {
-		if _, ok := globalSessions.m[id]; !ok {
+		if _, ok := sessionCache.m[id]; !ok {
 			//Assign the session ID if it isn't already assigned
-			globalSessions.m[id] = session{Form: f, Expiry: time.Now().UTC().Add(expiryTime)}
+			sessionCache.m[id] = session{Form: f, Expiry: time.Now().UTC().Add(expiryTime)}
 			break
 		}
-		id = generateID()
 		//Else sessionID is already assigned, so regenerate a different session ID
+		id = generateID()
 	}
-	globalSessions.Unlock()
+	sessionCache.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     token,
@@ -78,13 +78,13 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.F
 	})
 
 	//Start a read lock to prevent concurrent reads while other parts are executing a write.
-	globalSessions.Lock()
-	contents, ok := globalSessions.m[cookie.Value]
+	sessionCache.Lock()
+	contents, ok := sessionCache.m[cookie.Value]
 	if ok {
 		//Clear the session contents as it has been returned to the user.
-		delete(globalSessions.m, cookie.Value)
+		delete(sessionCache.m, cookie.Value)
 	}
-	globalSessions.Unlock()
+	sessionCache.Unlock()
 	if !ok || len(formIDs) == 0 {
 		return getForms(getFields, formIDs...), action
 	}
@@ -143,11 +143,11 @@ func generateID() string {
 //purge deletes unused sessions when their expiry datetime lapses.
 func purge() {
 	now := time.Now()
-	globalSessions.Lock()
-	for sessionID := range globalSessions.m {
-		if globalSessions.m[sessionID].Expiry.Before(now) {
-			delete(globalSessions.m, sessionID)
+	sessionCache.Lock()
+	for sessionID := range sessionCache.m {
+		if sessionCache.m[sessionID].Expiry.Before(now) {
+			delete(sessionCache.m, sessionID)
 		}
 	}
-	globalSessions.Unlock()
+	sessionCache.Unlock()
 }
