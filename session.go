@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/speedyhoon/forms"
+	"github.com/speedyhoon/frm"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 
 type session struct {
 	Expiry time.Time
-	Form   forms.Form
+	Form   frm.Form
 }
 
 var sessionCache = struct {
@@ -35,7 +35,7 @@ func init() {
 }
 
 //Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
-func Set(w http.ResponseWriter, f forms.Form) {
+func Set(w http.ResponseWriter, f frm.Form) {
 	id := generateID()
 
 	//Start mutex write lock.
@@ -60,7 +60,7 @@ func Set(w http.ResponseWriter, f forms.Form) {
 }
 
 //Get retrieves a slice of forms and clears the Set-Cookie HTTP header.
-func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.Field, formIDs ...uint8) (fs map[uint8]forms.Form, action uint8) {
+func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []frm.Field, formIDs ...uint8) (fs map[uint8]frm.Form, action uint8) {
 	action--
 
 	//Get users session id from request cookie header
@@ -89,7 +89,7 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.F
 		return getForms(getFields, formIDs...), action
 	}
 
-	fs = make(map[uint8]forms.Form, len(formIDs))
+	fs = make(map[uint8]frm.Form, len(formIDs))
 	for _, id := range formIDs {
 		if contents.Form.Action == id {
 			action = id
@@ -99,15 +99,15 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []forms.F
 			}
 		}
 		//Get form fields because they are not populated for successful requests that passed validation
-		fs[id] = forms.Form{Action: id, Fields: getFields(id)}
+		fs[id] = frm.Form{Action: id, Fields: getFields(id)}
 	}
 	return
 }
 
-func getForms(getFields func(uint8) []forms.Field, formIDs ...uint8) (f map[uint8]forms.Form) {
-	f = make(map[uint8]forms.Form, len(formIDs))
+func getForms(getFields func(uint8) []frm.Field, formIDs ...uint8) (f map[uint8]frm.Form) {
+	f = make(map[uint8]frm.Form, len(formIDs))
 	for _, id := range formIDs {
-		f[id] = forms.Form{Action: id, Fields: getFields(id)}
+		f[id] = frm.Form{Action: id, Fields: getFields(id)}
 	}
 	return
 }
