@@ -11,15 +11,16 @@ import (
 
 const (
 	ExpiryTime = time.Minute * 2
+	maxAge     = 120 // ExpiryTime in seconds.
 	PurgeEvery = time.Second * 15
 
 	token = "s"
 	// String generated from validCookieValueByte Go source code net/http/cookie.go
 	charset       = " !#$%&'()*+,-./0123456789:<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
-	charsetSize   = len(charset)
+	charsetSize   = int64(len(charset))
 	idLength      = 24                   // Session ID length is recommended to be at least 16 characters long.
-	letterIdxBits = 7                    // 7 bits needed to represent a letter index // bits.Len(uint(idLength))
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxBits = 5                    // Bits needed to represent a letter index.
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, same byte length as letterIdxBits.
 	letterIdxMax  = 63 / letterIdxBits   // No. of letter indices fitting in 63 bits
 )
 
@@ -65,7 +66,7 @@ func Set(w http.ResponseWriter, f frm.Form) {
 		Name:     token,
 		Value:    id,
 		HttpOnly: true, //HttpOnly means the cookie can't be accessed by JavaScript
-		MaxAge:   int(ExpiryTime.Seconds()),
+		MaxAge:   maxAge,
 	})
 }
 
