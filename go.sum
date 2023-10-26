@@ -6,6 +6,8 @@ github.com/speedyhoon/frm v0.0.0-20231023061555-9f45f699d1b7 h1:p1O+i0Vpchhlifig
 github.com/speedyhoon/frm v0.0.0-20231023061555-9f45f699d1b7/go.mod h1:vs3S6/UvRehonW3dR3QLh4V9EA3onN4pS5jwtZBabdw=
 github.com/speedyhoon/frm v0.0.0-20231025062209-39a70a56956b h1:Cr6k65Vz97lsDfebH5UlcZPB+9v/PJlYHSg5bLdOC3c=
 github.com/speedyhoon/frm v0.0.0-20231025062209-39a70a56956b/go.mod h1:a3fZ2UJn3ztP9mXejj3QAi8b4Tl/TXXzntqSK8SmQSE=
+github.com/speedyhoon/frm v0.0.0-20231025170115-f68ffb6c65c6 h1:QWVuLJxQDdBM70/d3oM6thO4+L1hdjoKjbXOXg4pURg=
+github.com/speedyhoon/frm v0.0.0-20231025170115-f68ffb6c65c6/go.mod h1:a3fZ2UJn3ztP9mXejj3QAi8b4Tl/TXXzntqSK8SmQSE=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
