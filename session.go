@@ -1,6 +1,7 @@
 package session
 
 import (
+	"math"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -44,7 +45,7 @@ func init() {
 	}()
 }
 
-//Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
+// Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
 func Set(w http.ResponseWriter, f frm.Form) {
 	// Generate the first ID before the cache is locked to reduce lock time
 	id := generateID()
@@ -71,18 +72,18 @@ func Set(w http.ResponseWriter, f frm.Form) {
 }
 
 // Get retrieves a slice of forms and clears the Set-Cookie HTTP header.
-func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []frm.Field, formIDs ...uint8) (fs map[uint8]frm.Form, action uint8) {
-	// Set default value to 255
-	action--
-
-	//Get users session id from request cookie header
+// If the request doesn't contain a session, then the `action` value returned is 255.
+//
+// The duplicate ids parameter is to ensure at least one uint8 is passed to the function without adding additional checks (same as the built-in exec.Command()).
+func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[uint8]frm.Form, action uint8) {
+	// Get the user's session id from the request cookie header.
 	cookie, err := r.Cookie(token)
 	if err != nil || cookie == nil || cookie.Value == "" {
-		//No session found. Return default forms.
-		return getForms(getFields, formIDs...), action
+		// No session found. Return default forms.
+		return frm.GetForms(id, ids...), math.MaxUint8
 	}
 
-	// Remove client session cookie
+	// Remove client session cookie.
 	http.SetCookie(w, &http.Cookie{
 		Name:     token,
 		HttpOnly: true, // HttpOnly means the cookie can't be accessed by JavaScript
@@ -98,30 +99,23 @@ func Get(w http.ResponseWriter, r *http.Request, getFields func(uint8) []frm.Fie
 	}
 	cache.Unlock()
 
-	if !ok || len(formIDs) == 0 {
-		return getForms(getFields, formIDs...), action
+	if !ok {
+		return frm.GetForms(id, ids...), math.MaxUint8
 	}
 
-	fs = make(map[uint8]frm.Form, len(formIDs))
-	for _, id := range formIDs {
+	f = map[uint8]frm.Form{
+		id: {Action: id, Fields: frm.GetFields(id)},
+	}
+	for _, id = range ids { // Reuse the existing `id` variable.
 		if contents.Form.Action == id {
 			action = id
 			if len(contents.Form.Fields) > 0 {
-				fs[id] = contents.Form
+				f[id] = contents.Form
 				continue
 			}
 		}
 		// Get form fields because they are not populated for successful requests that passed validation
-		fs[id] = frm.Form{Action: id, Fields: getFields(id)}
-	}
-
-	return
-}
-
-func getForms(getFields func(uint8) []frm.Field, formIDs ...uint8) (f map[uint8]frm.Form) {
-	f = make(map[uint8]frm.Form, len(formIDs))
-	for _, id := range formIDs {
-		f[id] = frm.Form{Action: id, Fields: getFields(id)}
+		f[id] = frm.Form{Action: id, Fields: frm.GetFields(id)}
 	}
 
 	return
@@ -138,7 +132,7 @@ func generateID() string {
 		if remain == 0 {
 			cache, remain = src.Int63(), letterIdxMax
 		}
-		if idx := int(cache & letterIdxMask); idx < charsetSize {
+		if idx := cache & letterIdxMask; idx < charsetSize {
 			b[i] = charset[idx]
 			i--
 		}
