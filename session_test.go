@@ -37,15 +37,34 @@ func TestGenerateID(t *testing.T) {
 		_, ok := list[id]
 		assert.False(t, ok, "duplicate session id generated", id)
 		t.Log(id)
+
+		list[id] = struct{}{}
 	}
 }
 
 // TestLetterIdxBits tests the constant value is correct.
 func TestLetterIdxBits(t *testing.T) {
-	assert.Equal(t, letterIdxBits, bits.Len(uint(idLength)))
+	assert.Equal(t, letterIdxBits, bits.Len(uint(charsetSize)))
 }
 
 // TestMaxAge tests the constant value is correct.
 func TestMaxAge(t *testing.T) {
 	assert.Equal(t, maxAge, int(ExpiryTime.Seconds()))
+}
+
+// TestAllCharsUsed tests all runes within charset are utilised.
+func TestAllCharsUsed(t *testing.T) {
+	const passWithin = 49
+	charsUsed := map[rune]struct{}{}
+
+	for i := 0; i < passWithin; i++ {
+		s := generateID()
+		for _, c := range s {
+			charsUsed[c] = struct{}{}
+		}
+		if int64(len(charsUsed)) == charsetSize {
+			return
+		}
+	}
+	assert.Len(t, charsUsed, int(charsetSize))
 }

@@ -20,10 +20,13 @@ const (
 	charset       = " !#$%&'()*+,-./0123456789:<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	charsetSize   = int64(len(charset))
 	idLength      = 24                   // Session ID length is recommended to be at least 16 characters long.
-	letterIdxBits = 5                    // Bits needed to represent a letter index.
+	letterIdxBits = 7                    // Bits needed to represent a letter index.
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, same byte length as letterIdxBits.
 	letterIdxMax  = 63 / letterIdxBits   // No. of letter indices fitting in 63 bits
+	round         = float32(charsetSize-1) / float32(letterIdxMask)
 )
+
+var randSrc = rand.NewSource(time.Now().UnixNano())
 
 type session struct {
 	Expiry time.Time
@@ -125,19 +128,17 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 // generateID generates a new random session ID string 24 ASCII characters long
 func generateID() string {
 	b := make([]byte, idLength)
-	src := rand.NewSource(time.Now().UnixNano())
 
 	// credit: icza, stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
 	// Int63() generates 63 random bits, enough for letterIdxMax characters.
-	for i, cache, remain := idLength-1, src.Int63(), letterIdxMax; i >= 0; {
+	for i, random, remain := idLength-1, randSrc.Int63(), letterIdxMax; i >= 0; {
 		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
+			random, remain = randSrc.Int63(), letterIdxMax
 		}
-		if idx := cache & letterIdxMask; idx < charsetSize {
-			b[i] = charset[idx]
-			i--
-		}
-		cache >>= letterIdxBits
+		index := uint8(float32(random&letterIdxMask) * round)
+		b[i] = charset[index]
+		i--
+		random >>= letterIdxBits
 		remain--
 	}
 
