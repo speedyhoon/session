@@ -1,4 +1,5 @@
 # session
+[![Go Reference](https://pkg.go.dev/badge/github.com/speedyhoon/session)](https://pkg.go.dev/github.com/speedyhoon/session)
 [![Go Report Card](https://goreportcard.com/badge/github.com/speedyhoon/session)](https://goreportcard.com/report/github.com/speedyhoon/session)
 
 Go session handling for temporarily storing form data submitted via HTTP Get or Post methods. An easy way to add simple server side form validation.
