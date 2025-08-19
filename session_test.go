@@ -26,8 +26,9 @@ func validCookieValueByte(b byte) bool {
 	return 0x20 <= b && b < 0x7f && b != '"' && b != ';' && b != '\\'
 }
 
+// TestGenerateID tests the risk of session ID collisions.
 func TestGenerateID(t *testing.T) {
-	const iterations = math.MaxUint16
+	const iterations = 16777215
 
 	list := make(map[string]struct{}, iterations)
 	for i := 0; i < iterations; i++ {
