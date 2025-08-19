@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	ExpiryTime = time.Minute * 2
-	maxAge     = 120 // ExpiryTime in seconds.
+	ExpiryTime = time.Second * maxAge
+	maxAge     = 120
 	PurgeEvery = time.Second * 15
 
 	token = "s"
@@ -22,7 +22,7 @@ const (
 	idLength      = 24                   // Session ID length is recommended to be at least 16 characters long.
 	letterIdxBits = 7                    // Bits needed to represent a letter index.
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, same byte length as letterIdxBits.
-	letterIdxMax  = 63 / letterIdxBits   // No. of letter indices fitting in 63 bits
+	letterIdxMax  = 63 / letterIdxBits   // Quantity of letter indices fitting in 63 bits.
 	round         = float32(charsetSize-1) / float32(letterIdxMask)
 )
 
