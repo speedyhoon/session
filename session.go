@@ -94,7 +94,7 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 		MaxAge:   -1,   // MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
 	})
 
-	// Start a lock to prevent concurrent reads while other parts are executing a write.
+	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
 	cache.Lock()
 	contents, ok := cache.store[cookie.Value]
 	if ok {
@@ -129,8 +129,8 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 func generateID() string {
 	b := make([]byte, idLength)
 
-	// credit: icza, stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
 	// Int63() generates 63 random bits, enough for letterIdxMax characters.
+	// Inspired from `icza`, stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
 	for i, random, remain := idLength-1, randSrc.Int63(), letterIdxMax; i >= 0; {
 		if remain == 0 {
 			random, remain = randSrc.Int63(), letterIdxMax

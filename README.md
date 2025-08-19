@@ -22,7 +22,7 @@ func updateFooBar(w http.ResponseWriter, r *http.Request) {
 	// Retrieve form contents if available, else return default form values specified in frm.GetFields().
 	f, _ := session.Get(w, r, frmUpdate)
 
-	// Insert code here to validate input data, insert or update database etc.
+	// Insert code here to validate input data, or update a database, etc.
 	// For example: Here we are modifying the form data returned.
 	f[frmUpdate].Fields[0].Value = "foo bar"
 
