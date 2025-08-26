@@ -16,7 +16,7 @@ const (
 	PurgeEvery = time.Second * 15
 
 	token = "s"
-	// String generated from validCookieValueByte Go source code net/http/cookie.go
+	// String generated from validCookieValueByte Go source code `net/http/cookie.go`.
 	charset       = " !#$%&'()*+,-./0123456789:<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	charsetSize   = int64(len(charset))
 	idLength      = 24                   // Session ID length is recommended to be at least 16 characters long.
@@ -50,7 +50,7 @@ func init() {
 
 // Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
 func Set(w http.ResponseWriter, f frm.Form) {
-	// Generate the first ID before the cache is locked to reduce lock time
+	// Generate the first ID before the cache is locked to reduce lock time.
 	id := generateID()
 	now := time.Now().UTC().Add(ExpiryTime)
 
@@ -62,7 +62,7 @@ func Set(w http.ResponseWriter, f frm.Form) {
 			cache.store[id] = session{Form: f, Expiry: now}
 			break
 		}
-		// Else sessionID is already assigned, so regenerate a different session ID
+		// Else, sessionID is already assigned, so regenerate a different session ID.
 		id = generateID()
 	}
 	cache.Unlock()
@@ -70,7 +70,7 @@ func Set(w http.ResponseWriter, f frm.Form) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     token,
 		Value:    id,
-		HttpOnly: true, //HttpOnly means the cookie can't be accessed by JavaScript
+		HttpOnly: true, // HttpOnly means the cookie can't be accessed by JavaScript.
 		MaxAge:   maxAge,
 	})
 }
@@ -82,16 +82,17 @@ func Set(w http.ResponseWriter, f frm.Form) {
 func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[uint8]frm.Form, action uint8) {
 	// Get the user's session id from the request cookie header.
 	cookie, err := r.Cookie(token)
-	if err != nil || cookie == nil || cookie.Value == "" {
-		// No session found. Return default forms.
+	// Ignore any cookie value that doesn't equal idLength.
+	if err != nil || cookie == nil || len(cookie.Value) != idLength {
+		// No valid session found. Return default forms.
 		return frm.GetForms(id, ids...), math.MaxUint8
 	}
 
 	// Remove client session cookie.
 	http.SetCookie(w, &http.Cookie{
 		Name:     token,
-		HttpOnly: true, // HttpOnly means the cookie can't be accessed by JavaScript
-		MaxAge:   -1,   // MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+		HttpOnly: true, // HttpOnly means the cookie can't be accessed by JavaScript.
+		MaxAge:   -1,   // MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'.
 	})
 
 	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
@@ -118,14 +119,14 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 				continue
 			}
 		}
-		// Get form fields because they are not populated for successful requests that passed validation
+		// Get form fields because they are not populated for successful requests that passed validation.
 		f[id] = frm.Form{Action: id, Fields: frm.GetFields(id)}
 	}
 
 	return
 }
 
-// generateID generates a new random session ID string 24 ASCII characters long
+// generateID generates a new random session ID string 24 ASCII characters long.
 func generateID() string {
 	b := make([]byte, idLength)
 
