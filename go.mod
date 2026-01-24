@@ -3,8 +3,8 @@ module github.com/speedyhoon/session
 go 1.20
 
 require (
-	github.com/speedyhoon/frm v0.0.0-20241218235748-25bfa304bcc3
-	github.com/stretchr/testify v1.9.0
+	github.com/speedyhoon/frm v0.0.0-20260121042211-4b724f12575e
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
