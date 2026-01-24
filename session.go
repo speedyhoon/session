@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	ExpiryTime = time.Second * maxAge
 	maxAge     = 120
+	ExpiryTime = time.Second * maxAge
 	PurgeEvery = time.Second * 15
 
 	token = "s"
@@ -25,8 +25,6 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // Quantity of letter indices fitting in 63 bits.
 	round         = float32(charsetSize-1) / float32(letterIdxMask)
 )
-
-var randSrc = rand.NewSource(time.Now().UnixNano())
 
 type session struct {
 	Expiry time.Time
@@ -145,6 +143,8 @@ func generateID() string {
 
 	return string(b)
 }
+
+var randSrc = rand.NewSource(time.Now().UnixNano())
 
 // purge deletes unused sessions when their expiry datetime lapses.
 func purge() {
