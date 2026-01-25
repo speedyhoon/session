@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// To execute the tests faster with less session ID collision detection (TestGenerateID) execute:
+// go test -short ./...
+
 func TestCharset(t *testing.T) {
 	var b byte
 	var validChars string
@@ -28,7 +31,10 @@ func validCookieValueByte(b byte) bool {
 
 // TestGenerateID tests the risk of session ID collisions.
 func TestGenerateID(t *testing.T) {
-	const iterations = 16777215
+	iterations := 16777215
+	if testing.Short() {
+		iterations = 9999
+	}
 
 	list := make(map[string]struct{}, iterations)
 	for i := 0; i < iterations; i++ {
@@ -55,7 +61,7 @@ func TestMaxAge(t *testing.T) {
 
 // TestAllCharsUsed tests all runes within charset are utilised.
 func TestAllCharsUsed(t *testing.T) {
-	const passWithin = 49
+	const passWithin = 45
 	charsUsed := map[rune]struct{}{}
 
 	for i := 0; i < passWithin; i++ {
@@ -67,5 +73,8 @@ func TestAllCharsUsed(t *testing.T) {
 			return
 		}
 	}
-	assert.Len(t, charsUsed, int(charsetSize))
+	assert.Len(t, charsUsed, int(charsetSize),
+		"generateID() only used %d of the %d available characters within %d executions",
+		len(charsUsed), charsetSize, passWithin,
+	)
 }
