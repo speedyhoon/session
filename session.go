@@ -106,10 +106,8 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 		return frm.GetForms(id, ids...), math.MaxUint8
 	}
 
-	f = map[uint8]frm.Form{
-		id: {Action: id, Fields: frm.GetFields(id)},
-	}
-	for _, id = range ids { // Reuse the existing `id` variable.
+	f = make(map[uint8]frm.Form, len(ids)+1)
+	for _, id = range append(ids, id) { // Reuse the existing `id` variable.
 		if contents.Form.Action == id {
 			action = id
 			if len(contents.Form.Fields) > 0 {
