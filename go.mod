@@ -1,6 +1,6 @@
 module github.com/speedyhoon/session
 
-go 1.20
+go 1.24
 
 require (
 	github.com/speedyhoon/frm v0.0.0-20260121042211-4b724f12575e
