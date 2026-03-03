@@ -1,9 +1,9 @@
 package session_test
 
 import (
+	"github.com/go-openapi/testify/v2/assert"
 	"github.com/speedyhoon/frm"
 	"github.com/speedyhoon/session"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strconv"

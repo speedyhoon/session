@@ -5,7 +5,7 @@ import (
 	"math/bits"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/go-openapi/testify/v2/assert"
 )
 
 // To execute the tests faster with less session ID collision detection (TestGenerateID) execute:

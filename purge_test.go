@@ -1,8 +1,8 @@
 package session
 
 import (
+	"github.com/go-openapi/testify/v2/assert"
 	"github.com/speedyhoon/frm"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
