@@ -1,32 +1,42 @@
 package session
 
 import (
-	"github.com/go-openapi/testify/v2/assert"
-	"github.com/speedyhoon/frm"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/speedyhoon/frm"
 )
 
 func TestPurge(t *testing.T) {
-	cache.store[generateID()] = session{
-		Expiry: time.Now(),
-		Form:   frm.Form{},
-	}
+	ExpiryTime(3)
+	w := httptest.NewRecorder()
+
+	Set(w, frm.Form{Action: 0})
 	assert.Len(t, cache.store, 1)
 
-	purge()
+	req, err := http.NewRequest(http.MethodPost, "/", nil)
+	assert.NoError(t, err)
+
+	copyCookie(t, w, req)
+	frm.GetFields = func(id uint8) []frm.Field {
+		return []frm.Field{
+			{Name: "n"},
+			{Name: "C"},
+		}
+	}
+
+	Get(w, req, 0)
 	assert.Len(t, cache.store, 0)
 
-	cache.store[generateID()] = session{
-		Expiry: time.Now().Add(time.Second),
-		Form:   frm.Form{},
-	}
+	Set(w, frm.Form{Action: 5})
 	assert.Len(t, cache.store, 1)
 
-	purge()
+	time.Sleep(expiryTime - time.Second)
 	assert.Len(t, cache.store, 1)
 
-	time.Sleep(time.Second)
-	purge()
+	time.Sleep(2 * time.Second)
 	assert.Len(t, cache.store, 0)
 }

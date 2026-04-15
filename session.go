@@ -10,11 +10,23 @@ import (
 	"github.com/speedyhoon/frm"
 )
 
-const (
+var (
 	maxAge     = 120
-	ExpiryTime = time.Second * maxAge
-	PurgeEvery = time.Second * 15
+	expiryTime = time.Duration(maxAge) * time.Second
 
+	randSrc = rand.NewSource(time.Now().UnixNano())
+	cache   = struct {
+		sync.RWMutex
+		store map[string]session
+	}{store: make(map[string]session)}
+)
+
+func ExpiryTime(seconds uint16) {
+	maxAge = int(seconds)
+	expiryTime = time.Duration(seconds) * time.Second
+}
+
+const (
 	token = "s"
 	// String generated from validCookieValueByte Go source code `net/http/cookie.go`.
 	charset       = " !#$%&'()*+,-./0123456789:<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
@@ -31,26 +43,11 @@ type session struct {
 	Form   frm.Form
 }
 
-var cache = struct {
-	sync.RWMutex
-	store map[string]session
-}{store: make(map[string]session)}
-
-func init() {
-	// Periodically delete expired sessions.
-	go func() {
-		for range time.NewTicker(PurgeEvery).C {
-			// Can't directly change global variables in a go routine, so call an external function.
-			purge()
-		}
-	}()
-}
-
 // Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
 func Set(w http.ResponseWriter, f frm.Form) {
 	// Generate the first ID before the cache is locked to reduce lock time.
 	id := generateID()
-	expiry := time.Now().UTC().Add(ExpiryTime)
+	expiry := time.Now().UTC().Add(expiryTime)
 
 	// Start mutex write lock.
 	cache.Lock()
@@ -70,6 +67,10 @@ func Set(w http.ResponseWriter, f frm.Form) {
 		Value:    id,
 		HttpOnly: true, // HttpOnly means the cookie can't be accessed by JavaScript.
 		MaxAge:   maxAge,
+	})
+
+	time.AfterFunc(time.Until(expiry), func() {
+		purge(id)
 	})
 }
 
@@ -93,15 +94,7 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 		MaxAge:   -1,   // MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'.
 	})
 
-	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
-	cache.Lock()
-	contents, ok := cache.store[cookie.Value]
-	if ok {
-		// Clear the session contents because it has been returned to the user.
-		delete(cache.store, cookie.Value)
-	}
-	cache.Unlock()
-
+	contents, ok := purge(cookie.Value)
 	if !ok {
 		return frm.GetForms(id, ids...), math.MaxUint8
 	}
@@ -142,16 +135,16 @@ func generateID() string {
 	return string(b)
 }
 
-var randSrc = rand.NewSource(time.Now().UnixNano())
-
-// purge deletes unused sessions when their expiry datetime lapses.
-func purge() {
-	now := time.Now()
+// purge deletes an unused session immediately.
+func purge(id string) (contents session, ok bool) {
+	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
 	cache.Lock()
-	for sessionID := range cache.store {
-		if cache.store[sessionID].Expiry.Before(now) {
-			delete(cache.store, sessionID)
-		}
+	contents, ok = cache.store[id]
+	if ok {
+		// Clear the session contents because it has been returned to the user.
+		delete(cache.store, id)
 	}
 	cache.Unlock()
+
+	return
 }

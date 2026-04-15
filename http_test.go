@@ -1,14 +1,12 @@
-package session_test
+package session
 
 import (
-	"github.com/go-openapi/testify/v2/assert"
-	"github.com/speedyhoon/frm"
-	"github.com/speedyhoon/session"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
-	"strings"
 	"testing"
+
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/speedyhoon/frm"
 )
 
 // TestSetupMissing tests a panic will be caused by frm.GetFields not being set before session.Get is called.
@@ -17,9 +15,10 @@ func TestSetupMissing(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
+	frm.GetFields = nil // Resets if other tests have assigned a function.
 
 	assert.Panics(t, func() {
-		_, _ = session.Get(w, r, frmOne)
+		_, _ = Get(w, r, frmOne)
 	})
 }
 
@@ -34,7 +33,7 @@ func TestSetupIncomplete(t *testing.T) {
 		return []frm.Field{}
 	}
 
-	form, action := session.Get(w, r, frmOne)
+	form, action := Get(w, r, frmOne)
 	assert.Equal(t, uint8(255), action)
 
 	expected := frm.Form{Action: frmOne, Fields: []frm.Field{}}
@@ -49,7 +48,7 @@ func TestGetOneForm(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 
-	form, action := session.Get(w, r, frmOne)
+	form, action := Get(w, r, frmOne)
 	assert.Equal(t, uint8(255), action)
 	assert.Len(t, form, 1)
 
@@ -77,12 +76,12 @@ func TestGetFourForms(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
-	session.Set(w, frm.Form{Action: frmOne, Fields: []frm.Field{{Name: "dog", Focus: true}}})
+	Set(w, frm.Form{Action: frmOne, Fields: []frm.Field{{Name: "dog", Focus: true}}})
 
 	r = httptest.NewRequest(http.MethodPost, "/", nil)
-	r.AddCookie(&http.Cookie{Name: token, Value: getSessionId(w, t)})
+	copyCookie(t, w, r)
 
-	form, action := session.Get(w, r, frmOne, 2, 3, 4)
+	form, action := Get(w, r, frmOne, 2, 3, 4)
 	assert.Equal(t, uint8(1), action)
 	assert.Len(t, form, 4)
 
@@ -105,11 +104,11 @@ func TestGetAndSet(t *testing.T) {
 	frm.GetFields = setupOneForm
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
-	session.Set(w, frm.Form{Action: frmTwo, Fields: []frm.Field{expected}})
+	Set(w, frm.Form{Action: frmTwo, Fields: []frm.Field{expected}})
 
 	r = httptest.NewRequest(http.MethodPost, "/", nil)
-	r.AddCookie(&http.Cookie{Name: token, Value: getSessionId(w, t)})
-	form, action := session.Get(w, r, frmOne, frmTwo)
+	copyCookie(t, w, r)
+	form, action := Get(w, r, frmOne, frmTwo)
 
 	assert.Equal(t, uint8(2), action)
 	assert.Len(t, form, 2)
@@ -131,7 +130,7 @@ func TestGetPurged(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	r.AddCookie(&http.Cookie{Name: token, Value: "!#$%&'()*+,-./0123456789"})
 
-	form, action := session.Get(w, r, frmOne, frmTwo)
+	form, action := Get(w, r, frmOne, frmTwo)
 	assert.Equal(t, uint8(255), action)
 	assert.Len(t, form, 2)
 	assert.Equal(t, map[uint8]frm.Form{
@@ -150,7 +149,7 @@ func TestGetMissingForm(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 
-	form, action := session.Get(w, r, frmTwo)
+	form, action := Get(w, r, frmTwo)
 	assert.Equal(t, uint8(255), action)
 	assert.Len(t, form, 1)
 
@@ -171,21 +170,12 @@ func setupOneForm(formID uint8) []frm.Field {
 	return []frm.Field{}
 }
 
-func getSessionId(w http.ResponseWriter, t *testing.T) (sessionId string) {
-	cookieValue := w.Header().Get("Set-Cookie")
-	const (
-		prefix = "s="
-		suffix = "; Max-Age=120; HttpOnly"
-	)
-	assert.True(t, strings.HasPrefix(cookieValue, prefix))
-	assert.True(t, strings.HasSuffix(cookieValue, suffix))
-
-	sessionId = strings.TrimSuffix(strings.TrimPrefix(cookieValue, prefix), suffix)
-	var err error
-	if len(sessionId) == 26 {
-		sessionId, err = strconv.Unquote(sessionId)
-		assert.NoError(t, err)
+func copyCookie(t *testing.T, w *httptest.ResponseRecorder, r *http.Request) {
+	for _, cookie := range w.Result().Cookies() {
+		if cookie.Name == token {
+			r.AddCookie(cookie)
+			return
+		}
 	}
-	assert.Len(t, sessionId, 24)
-	return
+	t.Errorf("cookie `%s` not found in response", token)
 }

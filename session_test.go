@@ -56,7 +56,7 @@ func TestLetterIdxBits(t *testing.T) {
 
 // TestMaxAge tests the constant value is correct.
 func TestMaxAge(t *testing.T) {
-	assert.Equal(t, maxAge, int(ExpiryTime.Seconds()))
+	assert.Equal(t, maxAge, int(expiryTime.Seconds()))
 }
 
 // TestAllCharsUsed tests all runes within charset are utilised.
