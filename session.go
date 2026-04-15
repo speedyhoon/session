@@ -50,14 +50,14 @@ func init() {
 func Set(w http.ResponseWriter, f frm.Form) {
 	// Generate the first ID before the cache is locked to reduce lock time.
 	id := generateID()
-	now := time.Now().UTC().Add(ExpiryTime)
+	expiry := time.Now().UTC().Add(ExpiryTime)
 
 	// Start mutex write lock.
 	cache.Lock()
 	for {
 		if _, ok := cache.store[id]; !ok {
 			// Assign the session ID if it isn't already assigned
-			cache.store[id] = session{Form: f, Expiry: now}
+			cache.store[id] = session{Form: f, Expiry: expiry}
 			break
 		}
 		// Else, sessionID is already assigned, so regenerate a different session ID.
