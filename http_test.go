@@ -41,9 +41,8 @@ func TestSetupIncomplete(t *testing.T) {
 }
 
 func TestGetOneForm(t *testing.T) {
-	const (
-		frmOne = 1
-	)
+	const frmOne = 1
+
 	frm.GetFields = setupOneForm
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -57,10 +56,8 @@ func TestGetOneForm(t *testing.T) {
 }
 
 func TestGetFourForms(t *testing.T) {
-	const (
-		token  = "s"
-		frmOne = 1
-	)
+	const frmOne = 1
+
 	frm.GetFields = func(formID uint8) []frm.Field {
 		switch formID {
 		case 1:
@@ -97,7 +94,6 @@ func TestGetFourForms(t *testing.T) {
 func TestGetAndSet(t *testing.T) {
 	expected := frm.Field{Name: "two", Required: true, Focus: true, Disable: true}
 	const (
-		token  = "s"
 		frmOne = 1
 		frmTwo = 2
 	)

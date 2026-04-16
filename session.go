@@ -41,6 +41,7 @@ const (
 type session struct {
 	Expiry time.Time
 	Form   frm.Form
+	*time.Timer
 }
 
 // Set attaches a newly generated session ID to the HTTP headers & saves the form for future retrieval.
@@ -54,7 +55,13 @@ func Set(w http.ResponseWriter, f frm.Form) {
 	for {
 		if _, ok := cache.store[id]; !ok {
 			// Assign the session ID if it isn't already assigned
-			cache.store[id] = session{Form: f, Expiry: expiry}
+			cache.store[id] = session{
+				Form:   f,
+				Expiry: expiry,
+				Timer: time.AfterFunc(time.Until(expiry), func() {
+					purge(id)
+				}),
+			}
 			break
 		}
 		// Else, sessionID is already assigned, so regenerate a different session ID.
@@ -67,10 +74,6 @@ func Set(w http.ResponseWriter, f frm.Form) {
 		Value:    id,
 		HttpOnly: true, // HttpOnly means the cookie can't be accessed by JavaScript.
 		MaxAge:   maxAge,
-	})
-
-	time.AfterFunc(time.Until(expiry), func() {
-		purge(id)
 	})
 }
 
@@ -94,17 +97,17 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 		MaxAge:   -1,   // MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'.
 	})
 
-	contents, ok := purge(cookie.Value)
+	form, ok := getRemove(cookie.Value)
 	if !ok {
 		return frm.GetForms(id, ids...), math.MaxUint8
 	}
 
 	f = make(map[uint8]frm.Form, len(ids)+1)
 	for _, id = range append(ids, id) { // Reuse the existing `id` variable.
-		if contents.Form.Action == id {
+		if form.Action == id {
 			action = id
-			if len(contents.Form.Fields) > 0 {
-				f[id] = contents.Form
+			if len(form.Fields) > 0 {
+				f[id] = form
 				continue
 			}
 		}
@@ -136,10 +139,10 @@ func generateID() string {
 }
 
 // purge deletes an unused session immediately.
-func purge(id string) (contents session, ok bool) {
+func purge(id string) {
 	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
 	cache.Lock()
-	contents, ok = cache.store[id]
+	_, ok := cache.store[id]
 	if ok {
 		// Clear the session contents because it has been returned to the user.
 		delete(cache.store, id)
@@ -147,4 +150,23 @@ func purge(id string) (contents session, ok bool) {
 	cache.Unlock()
 
 	return
+}
+
+// getRemove deletes an unused session immediately.
+func getRemove(id string) (form frm.Form, ok bool) {
+	var s session
+	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
+	cache.Lock()
+	s, ok = cache.store[id]
+	if ok {
+		// Clear the session contents because it has been returned to the user.
+		delete(cache.store, id)
+	}
+	cache.Unlock()
+
+	if s.Timer != nil {
+		s.Stop()
+	}
+
+	return s.Form, ok
 }
