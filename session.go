@@ -97,7 +97,7 @@ func Get(w http.ResponseWriter, r *http.Request, id uint8, ids ...uint8) (f map[
 		MaxAge:   -1,   // MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'.
 	})
 
-	form, ok := getRemove(cookie.Value)
+	form, ok := getForm(cookie.Value)
 	if !ok {
 		return frm.GetForms(id, ids...), math.MaxUint8
 	}
@@ -152,8 +152,9 @@ func purge(id string) {
 	return
 }
 
-// getRemove deletes an unused session immediately.
-func getRemove(id string) (form frm.Form, ok bool) {
+// getForm removes a session from the cache store,
+// cancelling the expiry timer and returning the session.Form.
+func getForm(id string) (_ frm.Form, ok bool) {
 	var s session
 	// Start a lock to prevent concurrent reads while other parts are executing a write operation.
 	cache.Lock()
